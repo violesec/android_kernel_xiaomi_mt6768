@@ -1,0 +1,56 @@
+version: 2.1
+jobs:
+  build:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large
+
+    steps:
+      - run:
+          name: Setup packages
+          command: |
+            sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y repo bc bison build-essential curl ccache coreutils flex g++-multilib gcc-multilib git gnupg \
+            gperf libxml2 lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev libwxgtk3.0-gtk3-dev imagemagick lunzip lzop schedtool squashfs-tools xsltproc zip \
+            zlib1g-dev perl xmlstarlet virtualenv xz-utils rr jq libncurses5 pngcrush lib32ncurses5-dev git-lfs libxml2 openjdk-11-jdk wget lib32readline-dev \
+            libssl-dev libxml2-utils android-sdk-libsparse-utils lld zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 \
+            lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig ca-certificates bc cpio imagemagick \
+            bsdmainutils lz4 aria2 rclone ssh-client libncurses5 libssl-dev rsync schedtool python-is-python3 libarchive-tools python3 zstd jq
+      - run:
+          name: Setup ccache
+          command: |
+            cd $CIRCLE_WORKING_DIRECTORY
+            mkdir ccache
+            sudo mkdir /mnt/ccache
+            sudo mount --bind $CIRCLE_WORKING_DIRECTORY/ccache /mnt/ccache
+            echo 'export USE_CCACHE=1' >> $BASH_ENV
+            echo 'export CCACHE_DIR=/mnt/ccache' >> $BASH_ENV
+            echo 'export CCACHE_EXEC=$(which ccache)' >> $BASH_ENV
+            source $BASH_ENV
+            ccache -o compression=true
+            ccache -M 20G
+            ccache -z
+      - run:
+          name: Clone kernel repo
+          command: |
+            cd $CIRCLE_WORKING_DIRECTORY
+            git config --global user.name "${CIRCLE_PROJECT_USERNAME}"
+            git config --global user.email "${CIRCLE_PROJECT_USERNAME}@gmail.com"
+            git clone ${KERNEL_REPO} -b ${KERNEL_BRANCH} --depth=500 kernel
+          environment:
+            KERNEL_REPO: https://github.com/violesec/android_kernel_xiaomi_mt6768.git
+            KERNEL_BRANCH: 13-test
+      - run:
+          name: Build
+          command: |
+            cd $CIRCLE_WORKING_DIRECTORY/kernel
+            wget https://raw.githubusercontent.com/violesec/build-kernel-circleci/main/config.env
+            wget https://raw.githubusercontent.com/violesec/build-kernel-circleci/main/kernel-build.sh && chmod +x ./kernel-build.sh
+            echo "Building kernel"
+            ./kernel-build.sh
+      - run:
+          name: Upload Build Artifacts to GoFile
+          command: |
+            cd $CIRCLE_WORKING_DIRECTORY/kernel
+            wget https://github.com/Sushrut1101/GoFile-Upload/raw/master/upload.sh && chmod +x upload.sh
+            ./upload.sh builds/*.zip
