@@ -52,10 +52,12 @@ config IOSCHED_MAPLE
 	tristate "Maple I/O scheduler"
 	default y
 	---help---
-	  The Maple I/O scheduler is a multiqueue scheduler that is designed
-	  to provide low latency and high throughput for both rotational and
-	  non-rotational storage devices. It is based on the BFQ I/O scheduler
-	  and is optimized for multiqueue devices.
+    The Maple I/O is based on zen and Simple I/O Schedulers.
+    It uses ZEN's first-come-first-serve style algorithm with
+    separate read/write requests and improved former/latter
+    request handling from SIO. Maple is biased towards handling
+    asynchronous requests before synchronous, and read requests
+    before write.
 
 choice
 
